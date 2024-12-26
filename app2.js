@@ -61,77 +61,108 @@ const data = {
   },
 };
 
+// Current selected course
+let selectedCourse = "course1";
+
 // Show content for the selected course
 function showCourse(courseCode) {
   var courseContent = document.getElementById("courseContent");
 
   // If no course is selected, clear the content
   if (!courseCode) {
-      courseContent.innerHTML = "";
-      return;
+    courseContent.innerHTML = "";
+    selectedCourse = null;
+    return;
   }
 
-  // Update the course content
-  // courseContent.innerHTML = "<h2>" + courseCode + " Content</h2>";
+  // Set the selected course
+  selectedCourse = courseCode;
 
-  // Load comments for the selected course (you can implement this function as needed)
+  // Load comments for the selected course
   loadCourseComments(courseCode);
 }
 
-// Fetch comments by course (simulating fetching from a server)
+// Fetch comments by course
 async function fetchCommentsByCourse(courseCode) {
-  return data.comments[courseCode] || []; // Return comments for the course
+  return data.comments[courseCode] || [];
 }
 
 // Load course comments into the comment section
 async function loadCourseComments(courseCode) {
   const comments = await fetchCommentsByCourse(courseCode);
-  const commentsWrapper = document.querySelector('.comment-section .comments-wrp');
-  commentsWrapper.innerHTML = ''; 
+  const commentsWrapper = document.querySelector(
+    ".comment-section .comments-wrp"
+  );
+  commentsWrapper.innerHTML = "";
   initComments(comments, commentsWrapper);
 }
 
-// Append comment to parent element
-const appendFrag = (frag, parent) => {
-  var children = [].slice.call(frag.childNodes, 0);
-  parent.appendChild(frag);
-  return children[1];
-};
-
 // Add a comment
 const addComment = (body, parentId, replyTo = undefined) => {
+  if (!selectedCourse) {
+    alert("Please select a course to comment on!");
+    return;
+  }
+
   let commentParent =
     parentId === 0
-      ? data.comments.course1
-      : data.comments.course1.filter((c) => c.id == parentId)[0].replies;
+      ? data.comments[selectedCourse]
+      : data.comments[selectedCourse].filter((c) => c.id == parentId)[0]
+          .replies;
+
   let newComment = {
     parent: parentId,
     id:
-      commentParent.length == 0
+      commentParent.length === 0
         ? 1
         : commentParent[commentParent.length - 1].id + 1,
     content: body,
     createdAt: "Now",
     replyingTo: replyTo,
     score: 0,
-    replies: parentId == 0 ? [] : undefined,
+    replies: parentId === 0 ? [] : undefined,
     user: data.currentUser,
   };
+
   commentParent.push(newComment);
-  initComments();
+  loadCourseComments(selectedCourse);
 };
 
 // Delete a comment
 const deleteComment = (commentObject) => {
-  if (commentObject.parent == 0) {
-    data.comments.course1 = data.comments.course1.filter((e) => e != commentObject);
+  if (commentObject.parent === 0) {
+    data.comments[selectedCourse] = data.comments[selectedCourse].filter(
+      (e) => e != commentObject
+    );
   } else {
-    data.comments.course1.filter((e) => e.id === commentObject.parent)[0].replies =
-      data.comments.course1
-        .filter((e) => e.id === commentObject.parent)[0]
-        .replies.filter((e) => e != commentObject);
+    data.comments[selectedCourse].filter(
+      (e) => e.id === commentObject.parent
+    )[0].replies = data.comments[selectedCourse]
+      .filter((e) => e.id === commentObject.parent)[0]
+      .replies.filter((e) => e != commentObject);
   }
-  initComments();
+  loadCourseComments(selectedCourse);
+};
+
+// Other functions remain unchanged
+
+// Add comment from input field
+const cmntInput = document.querySelector(".reply-input");
+cmntInput.querySelector(".bu-primary").addEventListener("click", () => {
+  let commentBody = cmntInput.querySelector(".cmnt-input").value;
+  if (commentBody.length === 0) return;
+  addComment(commentBody, 0);
+  cmntInput.querySelector(".cmnt-input").value = "";
+});
+
+// Initialize the comments section with default course comments
+loadCourseComments(selectedCourse);
+
+// Append comment to parent element
+const appendFrag = (frag, parent) => {
+  var children = [].slice.call(frag.childNodes, 0);
+  parent.appendChild(frag);
+  return children[1];
 };
 
 // Confirm and delete a comment
@@ -168,13 +199,15 @@ const spawnReplyInput = (parent, parentId, replyTo = undefined) => {
 const createCommentNode = (commentObject) => {
   const commentTemplate = document.querySelector(".comment-template");
   var commentNode = commentTemplate.content.cloneNode(true);
-  commentNode.querySelector(".usr-name").textContent = commentObject.user.username;
+  commentNode.querySelector(".usr-name").textContent =
+    commentObject.user.username;
   commentNode.querySelector(".usr-img").src = commentObject.user.image.webp;
   commentNode.querySelector(".score-number").textContent = commentObject.score;
   commentNode.querySelector(".cmnt-at").textContent = commentObject.createdAt;
   commentNode.querySelector(".c-body").textContent = commentObject.content;
   if (commentObject.replyingTo)
-    commentNode.querySelector(".reply-to").textContent = "@" + commentObject.replyingTo;
+    commentNode.querySelector(".reply-to").textContent =
+      "@" + commentObject.replyingTo;
 
   // Add score increment
   commentNode.querySelector(".score-plus").addEventListener("click", () => {
@@ -208,7 +241,11 @@ const appendComment = (parentNode, commentNode, parentId) => {
     if (parentNode.classList.contains("replies")) {
       spawnReplyInput(parentNode, parentId, replyTo);
     } else {
-      spawnReplyInput(appendedCmnt.querySelector(".replies"), parentId, replyTo);
+      spawnReplyInput(
+        appendedCmnt.querySelector(".replies"),
+        parentId,
+        replyTo
+      );
     }
   });
 };
@@ -228,15 +265,6 @@ function initComments(
     appendComment(parent, comment_node, parentId);
   });
 }
-
-// Add comment from input field
-const cmntInput = document.querySelector(".reply-input");
-cmntInput.querySelector(".bu-primary").addEventListener("click", () => {
-  let commentBody = cmntInput.querySelector(".cmnt-input").value;
-  if (commentBody.length == 0) return;
-  addComment(commentBody, 0);
-  cmntInput.querySelector(".cmnt-input").value = "";
-});
 
 // Initialize the comments section with default course comments
 initComments();
